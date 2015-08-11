@@ -1,0 +1,125 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <title>Montreal Mayoral Election 2013</title>
+
+  <script src="d3.v3.min.js"></script>
+  <script src="topojson.v1.min.js"></script>
+  <script src="dimple.v2.1.6.min.js"></script>
+
+<style>
+.island {
+  fill: #eee;
+}
+
+.districts {
+  stroke: lightgrey;
+  stroke-linejoin: round;
+  stroke-width: 0.5;
+  opacity: 1;
+}
+
+.title {
+  font: 18px sans-serif;
+}
+
+</style>
+<script type='text/javascript'>//<![CDATA[ 
+window.onload=function(){
+
+d3.json("election.json", function(e, data) {
+d3.json("districts.topojson", function(error, mtl) {
+
+    var width = 800;
+    var height =800;
+    var svg = dimple.newSvg("#chartContainer", width, height);
+
+var x = d3.scale.linear()
+    .range([10, width-10])
+    .domain([-74,-73.45]);
+var y = d3.scale.linear()
+    .range([10, height-10])
+    .domain([45.75, 45.35]);
+  var path = d3.geo.path()
+    .projection(
+        function(d){
+            return [x(d[0]),y(d[1])];
+        }
+      );
+
+
+  svg.append("g").attr("class", "island")
+    .selectAll("path")
+      .data(topojson.feature(mtl, mtl.objects.alldistricts).features)
+    .enter().append("path")
+      .attr("d", path);
+
+  svg.append("g").attr("class", "districts")
+    .selectAll("path")
+      .data(topojson.feature(mtl, mtl.objects.districts).features)
+    .enter().append("path")
+      .attr("d", path)
+      .style("fill", "white");
+
+
+  svg.selectAll(".title")
+    .data(["Montreal Mayoral Election 2013"])
+    .enter().append("text")
+      .attr("class", "title")
+      .attr("transform", function(d) { return "translate(185,170)" })
+      .text(function(d) { return d; });
+
+
+
+    var myChart = new dimple.chart(svg, data);
+    myChart.setBounds(10, 10, width-20, height-20)
+
+    var xaxis = myChart.addMeasureAxis("x", "xcoord");
+    xaxis.overrideMin = -74;
+    xaxis.overrideMax = -73.45;
+    xaxis.hidden = true;
+    var yaxis = myChart.addMeasureAxis("y", "ycoord");
+    yaxis.overrideMax = 45.75;
+    yaxis.overrideMin = 45.35;
+    yaxis.hidden = true;
+    var zaxis = myChart.addMeasureAxis("z", "Votes");
+    myChart.addMeasureAxis("p", "Votes");
+    var pies = myChart.addSeries(["Borough","District", "Candidate"], dimple.plot.pie);
+    pies.aggregate = dimple.aggregateMethod.avg
+    pies.radius = 15;
+    pies.addOrderRule(function(x,y){
+        var order = ["CÔTÉ Marcel","BERGERON Richard", "JOLY Mélanie", "CODERRE Denis"];
+        var a = order.indexOf(x.Candidate);
+        var b = order.indexOf(y.Candidate);
+        if(a>b) return -1;
+        if(a<b) return 1;
+        return 0;
+    });
+    var l = myChart.addLegend(200, 200, 300, 120, "left");
+    l.verticalPadding = 15;
+    myChart.assignColor("BERGERON Richard", "#4daf4a")
+    myChart.assignColor("CÔTÉ Marcel", "#ff7f00")
+    myChart.assignColor("CODERRE Denis", "#e41a1c")
+    myChart.assignColor("JOLY Mélanie", "#377eb8")
+    myChart.assignColor("Other", "#999999")
+    myChart.draw();
+});
+});
+
+}//]]>  
+
+</script>
+
+
+</head>
+<body style="text-align: center;">
+  <div id="chartContainer">
+</div>
+  
+</body>
+
+
+</html>
+

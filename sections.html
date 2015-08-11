@@ -1,0 +1,248 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <title>Montreal Mayoral Election 2013</title>
+
+  <script src="d3.v3.min.js"></script>
+<script src="d3.tip.v0.6.3.js"></script>
+<script src="topojson.v1.min.js"></script>
+
+<style>
+
+.title {
+  font: 68px sans-serif;
+}
+.title2 {
+  font: 22px sans-serif;
+}
+
+.island {
+  fill: #eee;
+}
+
+.districts {
+  stroke: lightgrey;
+  stroke-linejoin: round;
+  stroke-width: 0.5;
+  opacity: 1;
+}
+
+.d3-tip {
+  line-height: 1;
+  font-weight: bold;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  border-radius: 2px;
+}
+
+/* Creates a small triangle extender for the tooltip */
+.d3-tip:after {
+  box-sizing: border-box;
+  display: inline;
+  font-size: 10px;
+  width: 100%;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.8);
+  content: "\25BC";
+  position: absolute;
+  text-align: center;
+}
+
+/* Style northward tooltips differently */
+.d3-tip.n:after {
+  margin: -1px 0 0 0;
+  top: 100%;
+  left: 0;
+}
+
+</style>
+<script type='text/javascript'>//<![CDATA[ 
+window.onload=function(){
+
+
+var margin = {top: 0, right: 0, bottom: 0, left: 0},
+    width = 2000 - margin.left - margin.right,
+    height = 2000 - margin.top - margin.bottom,
+    padding = 0;
+
+
+
+var x = d3.scale.linear()
+    .range([10, width-10])
+    .domain([-74,-73.45]);
+var y = d3.scale.linear()
+    .range([10, height-10])
+    .domain([45.75, 45.35]);
+  var path = d3.geo.path()
+    .projection(
+        function(d){
+            return [x(d[0]),y(d[1])];
+        }
+      );
+var radius = d3.scale.sqrt()
+    .domain([0, 800])
+    .range([0, 10]);
+
+var force = d3.layout.force()
+    .charge(0)
+    .gravity(0)
+    .size([width, height]);
+
+var arc = d3.svg.arc()
+    .outerRadius(function(d){return radius(d.data.total);})
+    .innerRadius(0);
+
+var arc2 = d3.svg.arc()
+    .outerRadius(50)
+    .innerRadius(0);
+
+
+
+var pie = d3.layout.pie()
+    .sort(null)
+    .value(function(d) { return d.votes; });
+
+var tip = d3.tip()
+  .attr('class', 'd3-tip')
+  .offset([-10, 0])
+  .html(function(d) {
+    return d.text;
+  })
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+svg.call(tip);
+
+d3.json("districts.topojson", function(error, mtl) {
+
+
+  svg.append("g").attr("class", "island")
+    .selectAll("path")
+      .data(topojson.feature(mtl, mtl.objects.alldistricts).features)
+    .enter().append("path")
+      .attr("d", path);
+
+  svg.append("g").attr("class", "districts")
+    .selectAll("path")
+      .data(topojson.feature(mtl, mtl.objects.districts).features)
+    .enter().append("path")
+      .attr("d", path)
+      .style("fill", "white");
+      
+d3.json("election_section.json", function(error, sections) {
+  if (error) throw error;
+
+  var nodes = sections
+      .map(function(d) {
+        var v = d["BERGERON Richard"]+d["CODERRE Denis"]+d["CÔTÉ Marcel"]+d["JOLY Mélanie"];
+        return {
+          wedges: [
+          { total: v, color: "#4daf4a", group: "BERGERON Richard",  votes: d["BERGERON Richard"] },
+          { total: v, color: "#e41a1c", group: "CODERRE Denis",     votes: d["CODERRE Denis"] },
+          { total: v, color: "#377eb8", group: "JOLY Mélanie",      votes: d["JOLY Mélanie"] },
+          { total: v, color: "#ff7f00", group: "CÔTÉ Marcel",       votes: d["CÔTÉ Marcel"] }
+          ],
+          x: x(d.xcoord), y: y(d.ycoord),
+          x0: x(d.xcoord), y0: y(d.ycoord),
+          r: radius(v),
+          text: "<nobr>"+d.district_id+"-"+d.section_id+" ("+v+" votes)<br>"+d.Borough+"<br>"+d.District+"</nobr>",
+        };
+      });
+
+  force
+      .nodes(nodes)
+      .on("tick", tick)
+      .start();
+
+var node = svg.selectAll(".node")
+    .data(nodes)
+    .enter().append("g")
+    .attr("class", "node")
+    .attr('transform', function(d) { return 'translate(' + d.x + ',' + d.y + ')'; })
+      .on('mouseover', tip.show)
+      .on('mouseout', tip.hide);
+
+node.selectAll("path")
+    .data(function(d, i) {return pie(d.wedges); })
+    .enter()
+    .append("svg:path")
+    .attr("d", arc)
+    .attr("fill", function(d, i) { return  d.data.color; });
+
+  svg.selectAll(".title")
+    .data(["Montreal Mayoral Election 2013"])
+    .enter().append("text")
+      .attr("class", "title")
+      .attr("transform", function(d, i) { return "translate(200,500)" })
+      .text(function(d) { return d; });
+
+  svg.selectAll(".title2")
+    .data(["(zoom in/out or scroll down/right)"])
+    .enter().append("text")
+      .attr("class", "title2")
+      .attr("transform", function(d, i) { return "translate(500,600)" })
+      .text(function(d) { return d; });
+
+
+  function tick(e) {
+    node.each(gravity(e.alpha * .3))
+        .each(collide(.5))
+        .attr('transform', function(d) { return 'translate(' + d.x + ',' + d.y + ')'; });
+  }
+
+  function gravity(k) {
+    return function(d) {
+      d.x += (d.x0 - d.x) * k;
+      d.y += (d.y0 - d.y) * k;
+    };
+  }
+
+  function collide(k) {
+    var q = d3.geom.quadtree(nodes);
+    return function(node) {
+      var nr = node.r + padding,
+          nx1 = node.x - nr,
+          nx2 = node.x + nr,
+          ny1 = node.y - nr,
+          ny2 = node.y + nr;
+      q.visit(function(quad, x1, y1, x2, y2) {
+        if (quad.point && (quad.point !== node)) {
+          var x = node.x - quad.point.x,
+              y = node.y - quad.point.y,
+              l = x * x + y * y,
+              r = nr + quad.point.r;
+          if (l < r * r) {
+            l = ((l = Math.sqrt(l)) - r) / l * k;
+            node.x -= x *= l;
+            node.y -= y *= l;
+            quad.point.x += x;
+            quad.point.y += y;
+          }
+        }
+        return x1 > nx2 || x2 < nx1 || y1 > ny2 || y2 < ny1;
+      });
+    };
+  }
+})
+});
+
+}//]]>  
+
+</script>
+
+
+</head>
+<body>
+
+  
+</body>
+
+
+</html>
+
